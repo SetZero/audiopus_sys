@@ -1,5 +1,6 @@
 #![deny(rust_2018_idioms)]
 
+use core::panic;
 #[cfg(feature = "generate_binding")]
 use std::path::PathBuf;
 use std::{env, fmt::Display, path::Path};
@@ -46,8 +47,33 @@ fn build_opus(is_static: bool) {
             .expect("Could not canonicalise to absolute path")
     );
 
+    let mut dst = cmake::Config::new(opus_path);
+
+    println!("cargo:rerun-if-env-changed=ANDROID_NDK");
+    if let Ok(ndk) = std::env::var("ANDROID_NDK") {
+        dst.define("CMAKE_SYSTEM_NAME", "Android");
+        dst.define("ANDROID_NDK", ndk.clone());
+        dst.define("CMAKE_ANDROID_NDK", ndk);
+        dst.define("__ANDROID_API__", "24");
+    }
+
+    println!("cargo:rerun-if-env-changed=CMAKE_TOOLCHAIN_FILE");
+    if let Ok(toolchain) = std::env::var("CMAKE_TOOLCHAIN_FILE") {
+        dst.define("CMAKE_TOOLCHAIN_FILE", toolchain);
+    }
+
+    println!("cargo:rerun-if-env-changed=ANDROID_ABI");
+    if let Ok(abi) = std::env::var("ANDROID_ABI") {
+        dst.define("ANDROID_ABI", abi);
+    }
+
+    println!("cargo:rerun-if-env-changed=CMAKE_SYSTEM_PROCESSOR");
+    if let Ok(abi) = std::env::var("CARGO_CFG_TARGET_ARCH") {
+        dst.define("CMAKE_SYSTEM_PROCESSOR", map_architecture(&abi));
+    }
+
     println!("cargo:info=Building Opus via CMake.");
-    let opus_build_dir = cmake::build(opus_path);
+    let opus_build_dir = dst.build();
     link_opus(is_static, opus_build_dir.display())
 }
 
@@ -60,6 +86,14 @@ fn link_opus(is_static: bool, opus_build_dir: impl Display) {
     );
     println!("cargo:rustc-link-lib={}=opus", is_static_text);
     println!("cargo:rustc-link-search=native={}/lib", opus_build_dir);
+}
+
+fn map_architecture(arch: &str) -> &str {
+    match arch {
+        "arm" => "armv7-a",
+        "aarch64" => "aarch64",
+        _ => arch,
+    }
 }
 
 #[cfg(any(unix, target_env = "gnu"))]
