@@ -9,8 +9,6 @@ Orginally, this sys-crate was made to empower the [`serenity`]-crate to build au
 Everyone is welcome to contribute,
 check out the [`CONTRIBUTING.md`](CONTRIBUTING.md) for further guidance.
 
-**This is an updated version of audioopus_sys with Android support**
-
 # Building
 
 ## Requirements

@@ -44,22 +44,25 @@ fn build_opus(is_static: bool) {
 
     let mut dst = cmake::Config::new(opus_path);
 
-    println!("cargo:rerun-if-env-changed=ANDROID_NDK");
-    if let Ok(ndk) = std::env::var("ANDROID_NDK") {
-        dst.define("CMAKE_SYSTEM_NAME", "Android");
-        dst.define("ANDROID_NDK", ndk.clone());
-        dst.define("CMAKE_ANDROID_NDK", ndk);
-        dst.define("__ANDROID_API__", "24");
+    #[cfg(target_os = "android")]
+    {
+        println!("cargo:rerun-if-env-changed=ANDROID_NDK");
+        if let Ok(ndk) = std::env::var("ANDROID_NDK") {
+            dst.define("CMAKE_SYSTEM_NAME", "Android");
+            dst.define("ANDROID_NDK", ndk.clone());
+            dst.define("CMAKE_ANDROID_NDK", ndk);
+            dst.define("__ANDROID_API__", "24");
+        }
+
+        println!("cargo:rerun-if-env-changed=ANDROID_ABI");
+        if let Ok(abi) = std::env::var("ANDROID_ABI") {
+            dst.define("ANDROID_ABI", abi);
+        }
     }
 
     println!("cargo:rerun-if-env-changed=CMAKE_TOOLCHAIN_FILE");
     if let Ok(toolchain) = std::env::var("CMAKE_TOOLCHAIN_FILE") {
         dst.define("CMAKE_TOOLCHAIN_FILE", toolchain);
-    }
-
-    println!("cargo:rerun-if-env-changed=ANDROID_ABI");
-    if let Ok(abi) = std::env::var("ANDROID_ABI") {
-        dst.define("ANDROID_ABI", abi);
     }
 
     println!("cargo:rerun-if-env-changed=CMAKE_SYSTEM_PROCESSOR");
@@ -68,15 +71,6 @@ fn build_opus(is_static: bool) {
     }
 
     println!("cargo:info=Building Opus via CMake.");
-    let profile = env::var("PROFILE").unwrap_or_else(|_| "release".into());
-    let cmake_build_type = match profile.as_str() {
-        "debug" => "Debug",
-        "release" => "Release",
-        "bench" => "RelWithDebInfo",
-        _ => "Release",
-    };
-
-    dst.define("CMAKE_BUILD_TYPE", cmake_build_type);
     let opus_build_dir = dst.build();
     link_opus(is_static, opus_build_dir.display())
 }
