@@ -7,11 +7,7 @@ use std::{env, fmt::Display, path::Path};
 /// Outputs the library-file's prefix as word usable for actual arguments on
 /// commands or paths.
 const fn rustc_linking_word(is_static_link: bool) -> &'static str {
-    if is_static_link {
-        "static"
-    } else {
-        "dylib"
-    }
+    if is_static_link { "static" } else { "dylib" }
 }
 
 /// Generates a new binding at `src/lib.rs` using `src/wrapper.h`.
@@ -72,6 +68,15 @@ fn build_opus(is_static: bool) {
     }
 
     println!("cargo:info=Building Opus via CMake.");
+    let profile = env::var("PROFILE").unwrap_or_else(|_| "release".into());
+    let cmake_build_type = match profile.as_str() {
+        "debug" => "Debug",
+        "release" => "Release",
+        "bench" => "RelWithDebInfo",
+        _ => "Release",
+    };
+
+    dst.define("CMAKE_BUILD_TYPE", cmake_build_type);
     let opus_build_dir = dst.build();
     link_opus(is_static, opus_build_dir.display())
 }
